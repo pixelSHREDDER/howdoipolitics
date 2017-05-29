@@ -21,6 +21,19 @@ var placeTypes = {
 		'address_components': [0, 1]
 	}
 }
+var oReq = new XMLHttpRequest();
+
+function reqListener() {
+	console.log(this.responseText);
+}
+
+oReq.onload = function() {
+	alert(this.responseText);
+};
+
+oReq.open("get", "get-data.php", true);
+oReq.send();
+
 function parseResults(results) {
 	var result;
 	var place;
@@ -52,13 +65,24 @@ function parseResults(results) {
 			places.push(place);
 		}
 	}
+	addDistrictPlaces(places);
 	//console.log(places);
-	loadResultsBoxes();
 }
-function makeSearchQuery(type) {
-	
+function addDistrictPlaces(places) {
+	/*$.ajax({
+		url: 'https://congress.api.sunlightfoundation.com/districts/locate?latitude=' + position.coords.latitude + '&longitude=' + position.coords.longitude + '&apikey='
+	}).then(function(data) {
+		place = {
+			'id': 'state_congressional_district',
+			'type_label': 'State Congressional District (CD)',
+			'label': component1,
+			'search_string': data.state + data.district + "+District"
+		};
+		places.push(place);*/
+		loadResultsBoxes(places);
+	//});
 }
-function loadResultsBoxes() {
+function loadResultsBoxes(places) {
 	var place;
 	var q;
 	$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');

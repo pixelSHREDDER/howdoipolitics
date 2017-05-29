@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+		<meta property="og:type" content="article">
+		<meta property="og:title" content="How Do I Politics? | Organizing">
+		<meta property="og:description" content="A helpful how-to for organizing in politics.">
+		<meta property="og:url" content="http://www.howdoipolitics.com/organizing/index.html">
+		<meta property="og:image" content="images/logo.png">
+		<meta name="twitter:card" content="summary" />
+		<!--meta name="twitter:site" content="@twitter handle" /-->
+		<meta name="twitter:title" content="How Do I Politics? | Organizing" />
+		<meta name="twitter:description" content="A helpful how-to for organizing in politics." />
+		<meta name="twitter:image" content="images/logo.png" />
+		<meta name="twitter:imagealt" content="The logo for How Do I Politics?" />
+		<meta name="description" content="A helpful how-to for organizing in politics.">
+		<meta name="keywords" content="how do i politics, politics, american politics, us politics, organizing">
+		<meta name="author" content="Mike DeVine">
+		<meta name="copyright" content="Copyright Mike DeVine - 2017">
+		<!--meta name="email" content="email"-->
+		<meta name="Rating" content="General">
+		<meta name="Distribution" content="Global">
+		<meta name="Revisit-after" content="31 Days">
+		<meta name="mobile-web-app-capable" content="yes">
+		<link rel="icon" sizes="196x196" href="/favicon.png">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="white">
+		<meta name="apple-mobile-web-app-title" content="How Do I Politics? | Organizing">
+		<meta name="msapplication-TileImage" content="/favicon.png">
+		<meta name="msapplication-TileColor" content="#3366CC">
+		<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+		<link rel="icon" href="/favicon.ico" type="image/x-icon">
+		<title>How Do I Politics? | Organizing</title>
+		<link type="text/css" rel="stylesheet" href="../css/howdoipolitics.min.css">
+		<script>
+		  /* Goog Analytics */
+		</script>
+	</head>
+	<body>
+		<h1>How do I <span>Organizing?</span></h1>
+		<hr>
+		<h3>What You Need To Know</h3>
+		<p>Blurb.</p>
+		<!--h3>Let's Narrow It Down</h3>
+		<p>Info and location explainer.</p>
+		<form>
+			<input type="radio" name="democrat" value="democrat"> Democrat<br>
+			<input type="radio" name="republican" value="republican"> Republican<br>
+			<input type="radio" name="other" value="other"> Other<br>
+			Where are you? <input type="text"></input><input type="submit" value="Go">
+		</form-->
+		<section class="results"></section>
+	</body>
+	<!--[if lte IE 8]>
+		<script type="text/javascript" src="../js/howdoipoliticslegacy.min.js"></script>
+	<![endif]-->
+	<!--[if gte IE 9]><!-->
+	<script type="text/javascript" src="../js/howdoipoliticsmodern.min.js"></script>
+	<!--<![endif]-->
+</html>
