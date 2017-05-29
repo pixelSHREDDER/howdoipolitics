@@ -67,22 +67,22 @@ function loadResultsBoxes() {
 		q = encodeURIComponent('"' + place.search_string + '" democratic organization');
 		$('.results').append('<h4>In Your ' + place.type_label + ' (' + place.label + ')</h4>');
 		$('.results').append('<table id="' + place.id + '_results_table"></table>');
-		$('#' + place.id + '_results_table').append('<tr><th>Google</th><th>Facebook</th></tr>');
 		$('#' + place.id + '_results_table').append('<tr id="' + place.id + '_results_row' + '"></tr>');
-		loadGoogleResultsBox(place, q);
 		loadFacebookResultsBox(place, q);
+		loadGoogleResultsBox(place, q);
 	}
 }
 function loadGoogleResultsBox(place, q) {
 	$('#' + place.id + '_results_row').append('<td id="' + place.id + '_google_results"></td>');
 	$('<iframe>', {
 		src: '../search.html?q=' + q,
+		id: place.id + '_google_results_iframe',
 		frameborder: 0,
 		scrolling: 'yes'
 	}).appendTo('#' + place.id + '_google_results');
 }
 function loadFacebookResultsBox(place, q) {
-	var urlCall = '/search?q=' + q + '&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=EAACEdEose0cBAGWtpKTp4dbc5qvT8xwjEG2NH7KPvLczyMOjQGYMZALmB5e6JnuE0RrrRK7jZBPcR4Jxe2zBu3xZA56mm1nPF6OCbtLCh2rclhERCIyLUCf21QLVV9wzp0hJjIHUPHnwfPZBHeD696pEh7wXYVAiBfOhGddsx39BODc2MGdAz0s43Yz3y0AZD';
+	var urlCall = '/search?q=' + q + '&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=EAACEdEose0cBAJQGW2gYd7jZBZB6zZArlPYUl20qHgRgzofScOJAPZBiPAAawDBJ5cmQdM1417578qYk4mINgHgz8fU2yyr6NCZAeZBcm6ZAxj72CvEaq2BxTJUYaP5TSpWKZBURAiZAECaHb7jmUxTzmHjyO2CWO2sGt14yctMB1C7H3XklID6wD3SvPco5nccsZD';
 	var blurb;
 	var engagement;
 	var contact;
@@ -135,7 +135,7 @@ function loadFacebookResultsBox(place, q) {
 					+ '</li>');
 				}
 			} else {
-				$('#' + place.id + '_facebook_results_list').append('<p>We got nothing. Maybe you can start something?</p>')
+				$('#' + place.id + '_facebook_results_list').append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
 			}
 		}
 	);
