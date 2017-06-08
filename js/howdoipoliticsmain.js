@@ -277,6 +277,13 @@ function initFacebook() {
 
 function getLocation() {
 	if (navigator.geolocation) {
+		$('.loader').append(
+			$("<img>", {
+				src: '../images/loading_location.gif',
+				alt: 'Loading Location',
+				title: 'Loading Location'
+			})
+		);
 		navigator.geolocation.getCurrentPosition(showPosition, showError);
 	} else {
 		showError({
@@ -384,6 +391,16 @@ function clearResults() {
 
 function showPosition(position) {
 	var districts = [];
+
+	$('.loader').empty();
+	$('.loader').append(
+		$("<img>", {
+			src: '../images/loading_data.gif',
+			alt: 'Loading Data',
+			title: 'Loading Data'
+		})
+	);
+
 	$.ajax({
 		url: 'https://api.geocod.io/v1/reverse?q=' + position.coords.latitude + ',' + position.coords.longitude + '&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f'
 	}).then(function(data) {
@@ -480,6 +497,8 @@ function addDistrictPlaces(places, districts, state) {
 function loadResultsBoxes(places) {
 	var place;
 	var q;
+
+	$('.loader').empty();
 	$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
 	for (var i = 0; i < places.length; i++) {
 		place = places[i];
