@@ -546,7 +546,7 @@ function loadFacebookResultsBox(place, q) {
 						if (response.data[i].engagement.social_sentence === 'Be the first of your friends to like this.') {
 							engagement = '<p>No one likes this Facebook page yet.</p>';
 						} else {
-							engagement = '<p>' + response.data[i].engagement.social_sentence.replace('.', ' ') + 'Facebook page.</p>';
+							engagement = '<p>' + response.data[i].engagement.social_sentence.slice('.', -1) + ' Facebook page.</p>';
 						}
 					}
 					contact = '';
