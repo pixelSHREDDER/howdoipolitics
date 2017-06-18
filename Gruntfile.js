@@ -26,6 +26,35 @@ module.exports = function(grunt) {
 				}]
 			}
 		},
+		babel: {
+			main: {
+				options: {
+					sourceMap: true,
+					presets: ['es2015']
+				},
+				files: {
+					'js/howdoipoliticsmain-compiled.js': 'js/howdoipoliticsmain.js'
+				}
+			},
+			modern: {
+				options: {
+					sourceMap: true,
+					presets: ['es2015']
+				},
+				files: {
+					'js/howdoipoliticsmodern-compiled.js': 'js/howdoipoliticsmodern.js'
+				}
+			},
+			legacy: {
+				options: {
+					sourceMap: true,
+					presets: ['es2015']
+				},
+				files: {
+					'js/howdoipoliticslegacy-compiled.js': 'js/howdoipoliticslegacy.js'
+				}
+			}
+		},
 		uglify: {
 			modern: {
 				options: {
@@ -36,8 +65,8 @@ module.exports = function(grunt) {
 					'js/howdoipoliticsmodern.min.js': 
 						[
 							'node_modules/jquery/dist/jquery.min.js',
-							'js/howdoipoliticsmain.js',
-							'js/howdoipoliticsmodern.js'
+							'js/howdoipoliticsmain-compiled.js',
+							'js/howdoipoliticsmodern-compiled.js'
 						]
 				}
 			},
@@ -51,16 +80,17 @@ module.exports = function(grunt) {
 					'js/howdoipoliticslegacy.min.js': 
 						[
 							'js/legacy/jquery-1.12.4.min.js',
-							'js/howdoipoliticsmain.js',
-							'js/howdoipoliticslegacy.js'
+							'js/howdoipoliticsmain-compiled.js',
+							'js/howdoipoliticslegacy-compiled.js'
 						]
 				}
 			}
 		}
 	});
  
-	grunt.registerTask('default', ['sass', 'cssmin', 'uglify']);
-	grunt.registerTask('modern', ['sass', 'cssmin', 'uglify:modern']);
+	grunt.registerTask('default', ['sass', 'cssmin', 'babel:main', 'babel:modern', 'babel:legacy', 'uglify']);
+	grunt.registerTask('modern', ['sass', 'cssmin', 'babel:main', 'babel:modern', 'uglify:modern']);
+	grunt.registerTask('legacy', ['sass', 'cssmin', 'babel:main', 'babel:legacy', 'uglify:legacy']);
 	grunt.registerTask('styles', ['sass', 'cssmin']);
 	// no es6 support for uglify yet :(
 };

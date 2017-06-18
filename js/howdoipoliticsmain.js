@@ -1,22 +1,22 @@
 var placeTypes = {
 	'neighborhood': {
-		'type_label': "Neighborhood",
+		'type_label': 'Neighborhood',
 		'address_components': [0, 3]
 	},
 	'locality': {
-		'type_label': "Town/City",
+		'type_label': 'Town/City',
 		'address_components': [0, 3]
 	},
 	'administrative_area_level_2': {
-		'type_label': "County",
+		'type_label': 'County',
 		'address_components': [0, 1]
 	},
 	'political': {
-		'type_label': "Region",
+		'type_label': 'Region',
 		'address_components': [0, 1]
 	},
 	'administrative_area_level_1': {
-		'type_label': "State/Territory",
+		'type_label': 'State/Territory',
 		'address_components': [0, 1]
 	}
 }
@@ -278,7 +278,7 @@ function initFacebook() {
 function getLocation() {
 	if (navigator.geolocation) {
 		$('.loader').append(
-			$("<img>", {
+			$('<img>', {
 				src: '../images/loading_location.gif',
 				alt: 'Loading Location',
 				title: 'Loading Location'
@@ -295,40 +295,40 @@ function getLocation() {
 
 function loadForm() {
 	$('.search').append(
-		$("<h3/>").text("Contact Form"),
-		$("<p/>").text("This is my form. Please fill it out. It's awesome!"),
-		$("<form/>", {
+		$('<h3/>').text('Contact Form'),
+		$('<p/>').text('This is my form. Please fill it out. It\'s awesome!'),
+		$('<form/>', {
 			id: 'location',
 			name: 'location'
 		}).append(
-			$("<input/>", {
+			$('<input/>', {
 				type: 'text',
 				id: 'address1',
 				name: 'address1',
 				placeholder: 'Street Address, Line 1',
 				required: true
 			}),
-			$("<input/>", {
+			$('<input/>', {
 				type: 'text',
 				id: 'address2',
 				name: 'address2',
 				placeholder: 'Street Address, Line 2'
 			}),
-			$("<input/>", {
+			$('<input/>', {
 				type: 'text',
 				id: 'city',
 				name: 'city',
 				placeholder: 'City/Town',
 				required: true
 			}),
-			$("<select/>", {
+			$('<select/>', {
 				id: 'state',
 				name: 'state',
 				placeholder: 'State',
 				required: true
 			}),
-			$("<br/>"),
-			$("<input/>", {
+			$('<br/>'),
+			$('<input/>', {
 				type: 'submit',
 				id: 'submit',
 				value: 'Submit'
@@ -336,7 +336,7 @@ function loadForm() {
 		)
 	);
 	$('#state').append(
-		$("<option>", {
+		$('<option>', {
 			value: '',
 			text: 'Select a state/territory',
 			selected: true
@@ -344,7 +344,7 @@ function loadForm() {
 	);
 	$.each(states, function(key, value) {
 		$('#state').append(
-			$("<option>", {
+			$('<option>', {
 				value: this.key,
 				text: this.value.name
 			})
@@ -358,18 +358,18 @@ function loadForm() {
 	});
 }
 
-function processForm(form) {
+function processForm(form = {}) {
 	var position;
 	var address = form.children('input[name="address1"]').val();
 	var address2 = form.children('input[name="address2"]').val();
 	if (address2 !== '') {
-		address = address + ',+' + address2;
+		address = `${address},+${address2}`;
 	}
-	address = address + ',+' + form.children('input[name="city"]').val();
-	address = address + ',+' + form.children('#state').val();
-	address = address.replace(/ /g, "_").replace(/\//g, "_").toLowerCase();
+	address = `${address},+${form.children('input[name="city"]').val()}`;
+	address = `${address},+${form.children('#state').val()}`;
+	address = address.replace(/ /g, '_').replace(/\//g, '_').toLowerCase();
 	$.ajax({
-		url: 'https://maps.googleapis.com/maps/api/geocode/json?address=' + address + '&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA'
+		url: `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
 	}).then(function(data) {
 		if (data.status === 'ZERO_RESULTS') {
 			showError('noformresults');
@@ -389,12 +389,12 @@ function clearResults() {
 	$('.results').empty();
 }
 
-function showPosition(position) {
+function showPosition(position = {}) {
 	var districts = [];
 
 	$('.loader').empty();
 	$('.loader').append(
-		$("<img>", {
+		$('<img>', {
 			src: '../images/loading_data.gif',
 			alt: 'Loading Data',
 			title: 'Loading Data'
@@ -402,20 +402,20 @@ function showPosition(position) {
 	);
 
 	$.ajax({
-		url: 'https://api.geocod.io/v1/reverse?q=' + position.coords.latitude + ',' + position.coords.longitude + '&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f'
+		url: `https://api.geocod.io/v1/reverse?q=${position.coords.latitude},${position.coords.longitude}&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f`
 	}).then(function(data) {
 		if (data.results[0].fields.state_legislative_districts) {
 			districts = data.results[0].fields.state_legislative_districts;
 		}
 		$.ajax({
-			url: 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + position.coords.latitude + ',' + position.coords.longitude + '&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA'
+			url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
 		}).then(function(data) {
 			parseResults(data.results, districts);
 		});
 	});
 }
 
-function parseResults(results, districts) {
+function parseResults(results = [], districts = {}) {
 	var result;
 	var places = [];
 	var place;
@@ -432,9 +432,9 @@ function parseResults(results, districts) {
 		if (placeTypes[result.types[0]]) {
 			place = {};
 			component1 = result.address_components[placeTypes[result.types[0]].address_components[0]].long_name;
-			id = placeTypes[result.types[0]].type_label.replace(/ /g, "_").replace(/\//g, "_").toLowerCase();
+			id = placeTypes[result.types[0]].type_label.replace(/ /g, '_').replace(/\//g, '_' ).toLowerCase();
 			if (result.types[0] === 'political') {
-				id = id + '_' + i;
+				id = `${id}_${i}`;
 			}
 
 			if ((result.types[0] === 'administrative_area_level_1') && (result.address_components[0].short_name in states)) {
@@ -450,14 +450,14 @@ function parseResults(results, districts) {
 			(states[result.address_components[0].short_name]['type'] === 'State')) {
 				component2 = '+state';
 			} else {
-				component2 = ',+' + result.address_components[placeTypes[result.types[0]].address_components[1]].short_name;
+				component2 = `,+${result.address_components[placeTypes[result.types[0]].address_components[1]].short_name}`;
 			}
 			searchTweak = getSearchTweaks(result);
 			place = {
 				'id': id,
 				'type_label': typeLabel,
 				'label': component1,
-				'search_string': component1 + component2,
+				'search_string': `${component1}${component2}`,
 				'search_tweak': searchTweak
 			};
 			places.push(place);
@@ -467,7 +467,7 @@ function parseResults(results, districts) {
 	(districts['senate'] && (state !== '')) ? addDistrictPlaces(places, districts, state) : loadResultsBoxes(places);
 }
 
-function getSearchTweaks(result) {
+function getSearchTweaks(result = {}) {
 	var searchTweak;
 	for (var i = 0; i < searchTweaks.length; i++) {
 		searchTweak = searchTweaks[i];
@@ -478,15 +478,15 @@ function getSearchTweaks(result) {
 	return '';
 }
 
-function addDistrictPlaces(places, districts, state) {
+function addDistrictPlaces(places = [], districts = {}, state = '') {
 	var type_label;
 	$.each(districts, function(key, value) {
 		type_label = value.name.replace(' ' + value.district_number, '').replace('District', 'Legislative District');
-		place = {
-			'id': value.name.replace(/ /g, "_").replace(/\//g, "_").toLowerCase(),
+		var place = {
+			'id': value.name.replace(/ /g, '_').replace(/\//g, '_').toLowerCase(),
 			'type_label': type_label,
 			'label': value.district_number,
-			'search_string': state + '+' + value.name
+			'search_string': `${state}+${value.name}`
 		};
 		places.push(place);
 	});
@@ -494,7 +494,7 @@ function addDistrictPlaces(places, districts, state) {
 	loadResultsBoxes(places);
 }
 
-function loadResultsBoxes(places) {
+function loadResultsBoxes(places = []) {
 	var place;
 	var q;
 
@@ -502,32 +502,32 @@ function loadResultsBoxes(places) {
 	$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
 	for (var i = 0; i < places.length; i++) {
 		place = places[i];
-		q = encodeURIComponent('"' + place.search_string + '" democratic organization' + place.search_tweak);
-		$('.results').append('<h4>In Your ' + place.type_label + ' (' + place.label + ')</h4>');
-		$('.results').append('<table id="' + place.id + '_results_table"></table>');
-		$('#' + place.id + '_results_table').append('<tr id="' + place.id + '_results_row' + '"></tr>');
+		q = encodeURIComponent(`"${place.search_string}" democratic organization${place.search_tweak}`);
+		$('.results').append(`<h4>In Your ${place.type_label} (${place.label})</h4>`);
+		$('.results').append(`<table id="${place.id}_results_table"></table>`);
+		$(`#${place.id}_results_table`).append(`<tr id="${place.id}_results_row"></tr>`);
 		loadFacebookResultsBox(place, q);
 		loadGoogleResultsBox(place, q);
 	}
 }
 
-function loadGoogleResultsBox(place, q) {
-	$('#' + place.id + '_results_row').append('<td id="' + place.id + '_google_results"></td>');
+function loadGoogleResultsBox(place = {}, q = '') {
+	$(`#${place.id}_results_row`).append(`<td id="${place.id}_google_results"></td>`);
 	$('<iframe>', {
-		src: '../search.html?q=' + q,
-		id: place.id + '_google_results_iframe',
+		src: `../search.html?q=${q}`,
+		id: `${place.id}_google_results_iframe`,
 		frameborder: 0,
 		scrolling: 'yes'
-	}).appendTo('#' + place.id + '_google_results');
+	}).appendTo(`#${place.id}_google_results`);
 }
 
-function loadFacebookResultsBox(place, q) {
-	var urlCall = '/search?q=' + q + '&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4';
+function loadFacebookResultsBox(place = {}, q = '') {
+	var urlCall = `/search?q=${q}&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4`;
 	var blurb;
 	var engagement;
 	var contact;
-	$('#' + place.id + '_results_row').append('<td id="' + place.id + '_facebook_results"></td>');
-	$('#' + place.id + '_facebook_results').append('<ul id="' + place.id + '_facebook_results_list"></ul>');
+	$(`#${place.id}_results_row`).append(`<td id="${place.id}_facebook_results"></td>`);
+	$(`#${place.id}_facebook_results`).append(`<ul id="${place.id}_facebook_results_list"></ul>`);
 	FB.api(
 		urlCall,
 		function(response) {
@@ -535,18 +535,18 @@ function loadFacebookResultsBox(place, q) {
 				for (var i = 0; i < response.data.length; i++) {
 					blurb = '';
 					if (response.data[i].about) {
-						blurb = '<p>' + response.data[i].about + '</p>';
+						blurb = `<p>${response.data[i].about}</p>`;
 					} else if (response.data[i].description) {
-						blurb = '<p>' + response.data[i].description + '</p>';
+						blurb = `<p>${response.data[i].description}</p>`;
 					} else if (response.data[i].general_info) {
-						blurb = '<p>' + response.data[i].general_info + '</p>';
+						blurb = `<p>${response.data[i].general_info}</p>`;
 					}
 					engagement = '';
 					if (response.data[i].engagement) {
 						if (response.data[i].engagement.social_sentence === 'Be the first of your friends to like this.') {
 							engagement = '<p>No one likes this Facebook page yet.</p>';
 						} else {
-							engagement = '<p>' + response.data[i].engagement.social_sentence.slice('.', -1) + ' Facebook page.</p>';
+							engagement = `<p>${response.data[i].engagement.social_sentence.slice('.', -1)} Facebook page.</p>`;
 						}
 					}
 					contact = '';
@@ -558,52 +558,55 @@ function loadFacebookResultsBox(place, q) {
 					) {
 						contact = '<p>';
 						if (response.data[i].phone) {
-							contact = contact + '<span><a href="tel:' + response.data[i].phone + '">' + response.data[i].phone + '</span>';
+							contact = `${contact}<span><a href="tel:${response.data[i].phone}">${response.data[i].phone}</span>`;
 						}
 						if (response.data[i].website) {
-							contact = contact + '<span><a href="' + response.data[i].website + '" title="Website">Website</a></span>';
+							contact = `${contact}<span><a href="${response.data[i].website}" title="Website">Website</a></span>`;
 						}
 						if (response.data[i].contact_address) {
-							contact = contact + '</p><p translate="no">' + response.data[i].contact_address;
+							contact = `${contact}</p><p translate="no">${response.data[i].contact_address}`;
 						}
 						if (response.data[i].single_line_address) {
-							contact = contact + '</p><p translate="no">' + response.data[i].single_line_address;
+							contact = `${contact}</p><p translate="no">${response.data[i].single_line_address}`;
 						}
-						contact = contact + '</p>';
+						contact = `${contact}</p>`;
 					}
-					$('#' + place.id + '_facebook_results_list').append('<li>'
-					+ '<a href="' + response.data[i].link + '" title="' + response.data[i].name + '" target="_blank">' + response.data[i].name + '</a><br>'
-					+ blurb
-					+ engagement
-					+ contact
-					+ '</li>');
+					$(`#${place.id}_facebook_results_list`).append(`<li>
+						<a href="${response.data[i].link}" title="${response.data[i].name}" target="_blank">${response.data[i].name}</a><br>
+						${blurb}
+						${engagement}
+						${contact}
+						</li>`);
 				}
 			} else {
-				$('#' + place.id + '_facebook_results_list').append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
+				$(`#${place.id}_facebook_results_list`).append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
 			}
 		}
 	);
 }
 
-function showError(error) {
+function showError(error = {}) {
 	switch(error.code) {
 		case error.PERMISSION_DENIED:
-			console.log("User denied the request for Geolocation.");
+			console.log('User denied the request for Geolocation.');
 			break;
 		case error.POSITION_UNAVAILABLE:
-			console.log("Location information is unavailable.");
+			console.log('Location information is unavailable.');
 			break;
 		case error.TIMEOUT:
-			console.log("The request to get user location timed out.");
+			console.log('The request to get user location timed out.');
 			break;
 		case error.UNKNOWN_ERROR:
-			console.log("An unknown error occurred.");
+			console.log('An unknown error occurred.');
 			break;
 		case 'legacy':
-			console.log("Geolocation is not supported by this browser.");
+			console.log('Geolocation is not supported by this browser.');
 			break;
 		case 'noformresults':
-			console.log("Geolocation is not supported by this browser.");
+			console.log('Geolocation is not supported by this browser.');
 			break;
+			default:
+				console.log('Yo dawg I heard you like errors, so I put errors in your errors so you can error while you error.');
+				break;
 	}
 }
