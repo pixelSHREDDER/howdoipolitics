@@ -1,3 +1,4 @@
+var dataHolder;
 var placeTypes = {
 	'neighborhood': {
 		'type_label': 'Neighborhood',
@@ -258,6 +259,97 @@ var searchTweaks = [
 	}
 ];
 
+class DataHolder {
+	constructor(data = [], districts = {}, states = {}, searchTweaks = []) {
+		this.places = []
+		this.state = ''
+		this.data = data
+		this.districts = districts
+		this.states = states
+		this.searchTweaks = searchTweaks
+	}
+
+	addPlaces() {
+		var result;
+		var place;
+		var id;
+		var label;
+		var component1;
+		var component2;
+		var searchTweak;
+		var typeLabel;
+		var state = '';
+
+		for (let i = 0; i < this.data.results.length; i++) {
+			result = this.data.results[i];
+			if (placeTypes[result.types[0]]) {
+				place = {};
+				component1 = result.address_components[placeTypes[result.types[0]].address_components[0]].long_name;
+				id = placeTypes[result.types[0]].type_label.replace(/ /g, '_').replace(/\//g, '_' ).toLowerCase();
+				if (result.types[0] === 'political') {
+					id = `${id}_${i}`;
+				}
+
+				if ((result.types[0] === 'administrative_area_level_1') && (result.address_components[0].short_name in this.states)) {
+					typeLabel = states[result.address_components[0].short_name]['type'];
+				} else {
+					typeLabel = placeTypes[result.types[0]].type_label;
+				}
+
+				this.state = result.address_components[placeTypes[result.types[0]].address_components[1]].long_name;
+
+				if ((result.types[0] === 'administrative_area_level_1') && 
+				(result.address_components[0].short_name in states) && 
+				(states[result.address_components[0].short_name]['type'] === 'State')) {
+					component2 = '+state';
+				} else {
+					component2 = `,+${result.address_components[placeTypes[result.types[0]].address_components[1]].short_name}`;
+				}
+				searchTweak = this.getSearchTweaks(result);
+				place = {
+					'id': id,
+					'type_label': typeLabel,
+					'label': component1,
+					'search_string': `${component1}${component2}`,
+					'search_tweak': searchTweak
+				};
+				this.places.push(place);
+			}
+		}
+
+		(this.districts['senate'] && (state !== '')) ? this.addDistrictPlaces() : loadResultsBoxes(this.places);
+	}
+
+	addDistrictPlaces() {
+		var type_label;
+		var place;
+
+		for (let value in this.districts) {
+			type_label = value.name.replace(' ' + value.district_number, '').replace('District', 'Legislative District');
+			place = {
+				'id': value.name.replace(/ /g, '_').replace(/\//g, '_').toLowerCase(),
+				'type_label': type_label,
+				'label': value.district_number,
+				'search_string': `${this.state}+${value.name}`
+			};
+			this.places.push(place);
+		}
+
+		loadResultsBoxes(this.places);
+	}
+
+	getSearchTweaks(result = {}) {
+		var searchTweak;
+		for (let i = 0; i < this.searchTweaks.length; i++) {
+			searchTweak = this.searchTweaks[i];
+			if (result.formatted_address.indexOf(searchTweak.term) > -1) {
+				return searchTweak.tweak;
+			}
+		}
+		return '';
+	}
+}
+
 $(document).ready(function() {
 	initFacebook();
 	getLocation();
@@ -410,98 +502,20 @@ function showPosition(position = {}) {
 		$.ajax({
 			url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
 		}).then(function(data) {
-			parseResults(data.results, districts);
+			dataHolder = new DataHolder(data, districts, states, searchTweaks);
+			dataHolder.addPlaces();
 		});
 	});
 }
 
-function parseResults(results = [], districts = {}) {
-	var result;
-	var places = [];
-	var place;
-	var id;
-	var label;
-	var component1;
-	var component2;
-	var searchTweak;
-	var typeLabel;
-	var state = '';
-
-	for (var i = 0; i < results.length; i++) {
-		result = results[i];
-		if (placeTypes[result.types[0]]) {
-			place = {};
-			component1 = result.address_components[placeTypes[result.types[0]].address_components[0]].long_name;
-			id = placeTypes[result.types[0]].type_label.replace(/ /g, '_').replace(/\//g, '_' ).toLowerCase();
-			if (result.types[0] === 'political') {
-				id = `${id}_${i}`;
-			}
-
-			if ((result.types[0] === 'administrative_area_level_1') && (result.address_components[0].short_name in states)) {
-				typeLabel = states[result.address_components[0].short_name]['type'];
-			} else {
-				typeLabel = placeTypes[result.types[0]].type_label;
-			}
-
-			state = result.address_components[placeTypes[result.types[0]].address_components[1]].long_name;
-
-			if ((result.types[0] === 'administrative_area_level_1') && 
-			(result.address_components[0].short_name in states) && 
-			(states[result.address_components[0].short_name]['type'] === 'State')) {
-				component2 = '+state';
-			} else {
-				component2 = `,+${result.address_components[placeTypes[result.types[0]].address_components[1]].short_name}`;
-			}
-			searchTweak = getSearchTweaks(result);
-			place = {
-				'id': id,
-				'type_label': typeLabel,
-				'label': component1,
-				'search_string': `${component1}${component2}`,
-				'search_tweak': searchTweak
-			};
-			places.push(place);
-		}
-	}
-
-	(districts['senate'] && (state !== '')) ? addDistrictPlaces(places, districts, state) : loadResultsBoxes(places);
-}
-
-function getSearchTweaks(result = {}) {
-	var searchTweak;
-	for (var i = 0; i < searchTweaks.length; i++) {
-		searchTweak = searchTweaks[i];
-		if (result.formatted_address.indexOf(searchTweak.term) > -1) {
-			return searchTweak.tweak;
-		}
-	}
-	return '';
-}
-
-function addDistrictPlaces(places = [], districts = {}, state = '') {
-	var type_label;
-	$.each(districts, function(key, value) {
-		type_label = value.name.replace(' ' + value.district_number, '').replace('District', 'Legislative District');
-		var place = {
-			'id': value.name.replace(/ /g, '_').replace(/\//g, '_').toLowerCase(),
-			'type_label': type_label,
-			'label': value.district_number,
-			'search_string': `${state}+${value.name}`
-		};
-		places.push(place);
-	});
-
-	loadResultsBoxes(places);
-}
-
-function loadResultsBoxes(places = []) {
+function loadResultsBoxes() {
 	var place;
 	var q;
 
 	$('.loader').empty();
 	$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
-	for (var i = 0; i < places.length; i++) {
-		place = places[i];
+	for (let i = 0; i < dataHolder.places.length; i++) {
+		place = dataHolder.places[i];
 		q = encodeURIComponent(`"${place.search_string}" democratic organization${place.search_tweak}`);
 		$('.results').append(`<h4>In Your ${place.type_label} (${place.label})</h4>`);
 		$('.results').append(`<table id="${place.id}_results_table"></table>`);
@@ -532,7 +546,7 @@ function loadFacebookResultsBox(place = {}, q = '') {
 		urlCall,
 		function(response) {
 			if (response && !response.error && response.data.length) {
-				for (var i = 0; i < response.data.length; i++) {
+				for (let i = 0; i < response.data.length; i++) {
 					blurb = '';
 					if (response.data[i].about) {
 						blurb = `<p>${response.data[i].about}</p>`;
