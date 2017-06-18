@@ -267,6 +267,8 @@ class DataHolder {
 		this.districts = districts
 		this.states = states
 		this.searchTweaks = searchTweaks
+		this.loaderRenderer = new LoaderRenderer()
+		this.resultsRenderer = new ResultsRenderer()
 	}
 
 	addPlaces() {
@@ -317,7 +319,7 @@ class DataHolder {
 			}
 		}
 
-		(this.districts['senate'] && (state !== '')) ? this.addDistrictPlaces() : loadResultsBoxes(this.places);
+		(this.districts['senate'] && (state !== '')) ? this.addDistrictPlaces() : this.processPlaces();
 	}
 
 	addDistrictPlaces() {
@@ -335,7 +337,7 @@ class DataHolder {
 			this.places.push(place);
 		}
 
-		loadResultsBoxes(this.places);
+		this.processPlaces();
 	}
 
 	getSearchTweaks(result = {}) {
@@ -348,9 +350,154 @@ class DataHolder {
 		}
 		return '';
 	}
+
+	processPlaces() {
+		var place;
+		var q;
+
+		this.loaderRenderer.clear();
+		this.resultsRenderer.renderHeader();
+		for (let i = 0; i < this.places.length; i++) {
+			place = this.places[i];
+			q = encodeURIComponent(`"${place.search_string}" democratic organization${place.search_tweak}`);
+			this.resultsRenderer.renderBoxes(place);
+			this.getFacebookData(place, q, this.resultsRenderer.renderFacebookBox);
+			this.resultsRenderer.renderGoogleBox(place, q);
+		}
+	}
+
+	getFacebookData(place = {}, q = '', callback = function(){}) {
+		FB.api(
+			`/search?q=${q}
+			&type=page
+			&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website
+			&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4`,
+			function(response) {
+				callback(place, response);
+			}
+		);
+	}
+}
+
+class LoaderRenderer {
+	constructor() {}
+
+	clear() {
+		$('.loader').empty();
+	}
+
+	renderLocationLoader() {
+		this.clear();
+		$('.loader').append(
+			$('<img>', {
+				src: '../images/loading_location.gif',
+				alt: 'Loading Location',
+				title: 'Loading Location'
+			})
+		);
+	}
+
+	renderDataLoader() {
+		this.clear();
+		$('.loader').append(
+			$('<img>', {
+				src: '../images/loading_data.gif',
+				alt: 'Loading Data',
+				title: 'Loading Data'
+			})
+		);
+	}
+}
+
+class ResultsRenderer {
+	constructor() {}
+
+	clear() {
+		$('.results').empty();
+	}
+
+	renderHeader() {
+		$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
+	}
+
+	renderBoxes(place) {
+		$('.results').append(`<h4>In Your ${place.type_label} (${place.label})</h4>`);
+		$('.results').append(`<table id="${place.id}_results_table"></table>`);
+		$(`#${place.id}_results_table`).append(`<tr id="${place.id}_results_row"></tr>`);
+	}
+
+	renderFacebookBox(place = {}, response = {}) {
+		var blurb;
+		var engagement;
+		var contact;
+
+		$(`#${place.id}_results_row`).append(`<td id="${place.id}_facebook_results"></td>`);
+		$(`#${place.id}_facebook_results`).append(`<ul id="${place.id}_facebook_results_list"></ul>`);
+		if (response && !response.error && response.data.length) {
+			for (let i = 0; i < response.data.length; i++) {
+				blurb = '';
+				if (response.data[i].about) {
+					blurb = `<p>${response.data[i].about}</p>`;
+				} else if (response.data[i].description) {
+					blurb = `<p>${response.data[i].description}</p>`;
+				} else if (response.data[i].general_info) {
+					blurb = `<p>${response.data[i].general_info}</p>`;
+				}
+				engagement = '';
+				if (response.data[i].engagement) {
+					if (response.data[i].engagement.social_sentence === 'Be the first of your friends to like this.') {
+						engagement = '<p>No one likes this Facebook page yet.</p>';
+					} else {
+						engagement = `<p>${response.data[i].engagement.social_sentence.slice('.', -1)} Facebook page.</p>`;
+					}
+				}
+				contact = '';
+				if (
+					(response.data[i].contact_address) ||
+					(response.data[i].phone) ||
+					(response.data[i].single_line_address) ||
+					(response.data[i].website)
+				) {
+					contact = '<p>';
+					if (response.data[i].phone) {
+						contact = `${contact}<span><a href="tel:${response.data[i].phone}">${response.data[i].phone}</span>`;
+					}
+					if (response.data[i].website) {
+						contact = `${contact}<span><a href="${response.data[i].website}" title="Website">Website</a></span>`;
+					}
+					if (response.data[i].contact_address) {
+						contact = `${contact}</p><p translate="no">${response.data[i].contact_address}`;
+					}
+					if (response.data[i].single_line_address) {
+						contact = `${contact}</p><p translate="no">${response.data[i].single_line_address}`;
+					}
+					contact = `${contact}</p>`;
+				}
+				$(`#${place.id}_facebook_results_list`).append(`<li>
+					<a href="${response.data[i].link}" title="${response.data[i].name}" target="_blank">${response.data[i].name}</a><br>
+					${blurb}
+					${engagement}
+					${contact}
+					</li>`);
+			}
+		} else {
+			$(`#${place.id}_facebook_results_list`).append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
+		}
+	}
+
+	renderGoogleBox(place = {}, q = '') {
+		$(`#${place.id}_results_row`).append(`<td id="${place.id}_google_results"></td>`);
+		$('<iframe>', {
+			src: `../search.html?q=${q}`,
+			id: `${place.id}_google_results_iframe`,
+			frameborder: 0,
+			scrolling: 'yes'
+		}).appendTo(`#${place.id}_google_results`);
+	}
 }
 
 $(document).ready(function() {
+	loaderRenderer = new LoaderRenderer();
 	initFacebook();
 	getLocation();
 });
@@ -369,13 +516,7 @@ function initFacebook() {
 
 function getLocation() {
 	if (navigator.geolocation) {
-		$('.loader').append(
-			$('<img>', {
-				src: '../images/loading_location.gif',
-				alt: 'Loading Location',
-				title: 'Loading Location'
-			})
-		);
+		loaderRenderer.renderLocationLoader();
 		navigator.geolocation.getCurrentPosition(showPosition, showError);
 	} else {
 		showError({
@@ -477,22 +618,10 @@ function processForm(form = {}) {
 	});
 };
 
-function clearResults() {
-	$('.results').empty();
-}
-
 function showPosition(position = {}) {
 	var districts = [];
 
-	$('.loader').empty();
-	$('.loader').append(
-		$('<img>', {
-			src: '../images/loading_data.gif',
-			alt: 'Loading Data',
-			title: 'Loading Data'
-		})
-	);
-
+	loaderRenderer.renderDataLoader();
 	$.ajax({
 		url: `https://api.geocod.io/v1/reverse?q=${position.coords.latitude},${position.coords.longitude}&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f`
 	}).then(function(data) {
@@ -506,97 +635,6 @@ function showPosition(position = {}) {
 			dataHolder.addPlaces();
 		});
 	});
-}
-
-function loadResultsBoxes() {
-	var place;
-	var q;
-
-	$('.loader').empty();
-	$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
-	for (let i = 0; i < dataHolder.places.length; i++) {
-		place = dataHolder.places[i];
-		q = encodeURIComponent(`"${place.search_string}" democratic organization${place.search_tweak}`);
-		$('.results').append(`<h4>In Your ${place.type_label} (${place.label})</h4>`);
-		$('.results').append(`<table id="${place.id}_results_table"></table>`);
-		$(`#${place.id}_results_table`).append(`<tr id="${place.id}_results_row"></tr>`);
-		loadFacebookResultsBox(place, q);
-		loadGoogleResultsBox(place, q);
-	}
-}
-
-function loadGoogleResultsBox(place = {}, q = '') {
-	$(`#${place.id}_results_row`).append(`<td id="${place.id}_google_results"></td>`);
-	$('<iframe>', {
-		src: `../search.html?q=${q}`,
-		id: `${place.id}_google_results_iframe`,
-		frameborder: 0,
-		scrolling: 'yes'
-	}).appendTo(`#${place.id}_google_results`);
-}
-
-function loadFacebookResultsBox(place = {}, q = '') {
-	var urlCall = `/search?q=${q}&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4`;
-	var blurb;
-	var engagement;
-	var contact;
-	$(`#${place.id}_results_row`).append(`<td id="${place.id}_facebook_results"></td>`);
-	$(`#${place.id}_facebook_results`).append(`<ul id="${place.id}_facebook_results_list"></ul>`);
-	FB.api(
-		urlCall,
-		function(response) {
-			if (response && !response.error && response.data.length) {
-				for (let i = 0; i < response.data.length; i++) {
-					blurb = '';
-					if (response.data[i].about) {
-						blurb = `<p>${response.data[i].about}</p>`;
-					} else if (response.data[i].description) {
-						blurb = `<p>${response.data[i].description}</p>`;
-					} else if (response.data[i].general_info) {
-						blurb = `<p>${response.data[i].general_info}</p>`;
-					}
-					engagement = '';
-					if (response.data[i].engagement) {
-						if (response.data[i].engagement.social_sentence === 'Be the first of your friends to like this.') {
-							engagement = '<p>No one likes this Facebook page yet.</p>';
-						} else {
-							engagement = `<p>${response.data[i].engagement.social_sentence.slice('.', -1)} Facebook page.</p>`;
-						}
-					}
-					contact = '';
-					if (
-						(response.data[i].contact_address) ||
-						(response.data[i].phone) ||
-						(response.data[i].single_line_address) ||
-						(response.data[i].website)
-					) {
-						contact = '<p>';
-						if (response.data[i].phone) {
-							contact = `${contact}<span><a href="tel:${response.data[i].phone}">${response.data[i].phone}</span>`;
-						}
-						if (response.data[i].website) {
-							contact = `${contact}<span><a href="${response.data[i].website}" title="Website">Website</a></span>`;
-						}
-						if (response.data[i].contact_address) {
-							contact = `${contact}</p><p translate="no">${response.data[i].contact_address}`;
-						}
-						if (response.data[i].single_line_address) {
-							contact = `${contact}</p><p translate="no">${response.data[i].single_line_address}`;
-						}
-						contact = `${contact}</p>`;
-					}
-					$(`#${place.id}_facebook_results_list`).append(`<li>
-						<a href="${response.data[i].link}" title="${response.data[i].name}" target="_blank">${response.data[i].name}</a><br>
-						${blurb}
-						${engagement}
-						${contact}
-						</li>`);
-				}
-			} else {
-				$(`#${place.id}_facebook_results_list`).append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
-			}
-		}
-	);
 }
 
 function showError(error = {}) {
