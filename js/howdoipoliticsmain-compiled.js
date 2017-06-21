@@ -5,6 +5,8 @@ var _createClass = function () { function defineProperties(target, props) { for 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var dataHolder;
+var formRenderer;
+var loaderRenderer;
 var placeTypes = {
 	'neighborhood': {
 		'type_label': 'Neighborhood',
@@ -264,17 +266,15 @@ var searchTweaks = [{
 
 var DataHolder = function () {
 	function DataHolder() {
-		var data = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : [];
-		var districts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-		var states = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
-		var searchTweaks = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : [];
+		var states = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+		var searchTweaks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
 
 		_classCallCheck(this, DataHolder);
 
 		this.places = [];
 		this.state = '';
-		this.data = data;
-		this.districts = districts;
+		this.data = [];
+		this.districts = {};
 		this.states = states;
 		this.searchTweaks = searchTweaks;
 		this.loaderRenderer = new LoaderRenderer();
@@ -282,6 +282,49 @@ var DataHolder = function () {
 	}
 
 	_createClass(DataHolder, [{
+		key: 'processForm',
+		value: function processForm() {
+			var form = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+			var position = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
+
+			if (!position) {
+				processFallbackForm(form);
+			} else {
+				showPosition(position);
+			}
+		}
+	}, {
+		key: 'processFallbackForm',
+		value: function processFallbackForm() {
+			var form = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+
+			var position;
+			var address = form.children('input[name="address1"]').val();
+			var address2 = form.children('input[name="address2"]').val();
+
+			if (address2 !== '') {
+				address = address + ',+' + address2;
+			}
+			address = address + ',+' + form.children('input[name="city"]').val();
+			address = address + ',+' + form.children('#state').val();
+			address = address.replace(/ /g, '_').replace(/\//g, '_').toLowerCase();
+			$.ajax({
+				url: 'https://maps.googleapis.com/maps/api/geocode/json?address=' + address + '&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA'
+			}).then(function (data) {
+				if (data.status === 'ZERO_RESULTS') {
+					showError('noformresults');
+					return;
+				}
+				position = {
+					coords: {
+						latitude: data.results[0].geometry.location.lat,
+						longitude: data.results[0].geometry.location.lng
+					}
+				};
+				showPosition(position);
+			});
+		}
+	}, {
 		key: 'addPlaces',
 		value: function addPlaces() {
 			var result;
@@ -394,6 +437,99 @@ var DataHolder = function () {
 	}]);
 
 	return DataHolder;
+}();
+
+var FormRenderer = function () {
+	function FormRenderer() {
+		_classCallCheck(this, FormRenderer);
+	}
+
+	_createClass(FormRenderer, [{
+		key: 'clear',
+		value: function clear() {}
+	}, {
+		key: 'renderForm',
+		value: function renderForm(_ref) {
+			var _ref$callback = _ref.callback,
+			    callback = _ref$callback === undefined ? function () {} : _ref$callback,
+			    _ref$position = _ref.position,
+			    position = _ref$position === undefined ? null : _ref$position,
+			    _ref$states = _ref.states,
+			    states = _ref$states === undefined ? {} : _ref$states;
+
+			$('.search').append($('<h3/>').text('Contact Form'), $('<p/>').text('This is my form. Please fill it out. It\'s awesome!'), $('<form/>', {
+				id: 'search',
+				name: 'search'
+			}).append($('<input/>', {
+				type: 'text',
+				id: 'address1',
+				name: 'address1',
+				placeholder: 'Street Address, Line 1',
+				required: true
+			}), $('<br/>'), $('<input/>', {
+				type: 'submit',
+				id: 'submit',
+				value: 'Submit'
+			})));
+
+			if (!position) {
+				this.renderFallbackFields(states);
+			};
+
+			$('#search').on('submit', { callback: callback, position: position }, function (e) {
+				e.preventDefault();
+				e.data.callback($(this), e.data.position);
+			});
+		}
+	}, {
+		key: 'renderFallbackFields',
+		value: function renderFallbackFields(states) {
+			$('<input/>', {
+				type: 'text',
+				id: 'address1',
+				name: 'address1',
+				placeholder: 'Street Address, Line 1',
+				required: true
+			}).insertBefore('#submit');
+
+			$('<input/>', {
+				type: 'text',
+				id: 'address2',
+				name: 'address2',
+				placeholder: 'Street Address, Line 2'
+			}).insertBefore('#submit');
+
+			$('<input/>', {
+				type: 'text',
+				id: 'city',
+				name: 'city',
+				placeholder: 'City/Town',
+				required: true
+			}).insertBefore('#submit');
+
+			$('<select/>', {
+				id: 'state',
+				name: 'state',
+				placeholder: 'State',
+				required: true
+			}).insertBefore('#submit');
+
+			$('#state').append($('<option>', {
+				value: '',
+				text: 'Select a state/territory',
+				selected: true
+			}));
+			$.each(states, function (key, value) {
+				$('#state').append($('<option>', {
+					value: key,
+					text: value.name
+				}));
+			});
+			$('#state').change(function () {}).trigger('change');
+		}
+	}]);
+
+	return FormRenderer;
 }();
 
 var LoaderRenderer = function () {
@@ -526,6 +662,8 @@ var ResultsRenderer = function () {
 }();
 
 $(document).ready(function () {
+	dataHolder = new DataHolder(states = states, searchTweaks = searchTweaks);
+	formRenderer = new FormRenderer();
 	loaderRenderer = new LoaderRenderer();
 	initFacebook();
 	getLocation();
@@ -546,110 +684,41 @@ function initFacebook() {
 function getLocation() {
 	if (navigator.geolocation) {
 		loaderRenderer.renderLocationLoader();
-		navigator.geolocation.getCurrentPosition(showPosition, showError);
+		//navigator.geolocation.getCurrentPosition(showPosition, showError);
+		navigator.geolocation.getCurrentPosition(function (position) {
+			formRenderer.renderForm({
+				callback: dataHolder.processForm,
+				position: position
+			});
+		}, showError);
 	} else {
 		showError({
 			code: 'legacy'
 		});
-		loadForm();
+		formRenderer.renderForm({
+			callback: dataHolder.processForm,
+			states: dataHolder.states
+		});
 	}
 }
-
-function loadForm() {
-	$('.search').append($('<h3/>').text('Contact Form'), $('<p/>').text('This is my form. Please fill it out. It\'s awesome!'), $('<form/>', {
-		id: 'location',
-		name: 'location'
-	}).append($('<input/>', {
-		type: 'text',
-		id: 'address1',
-		name: 'address1',
-		placeholder: 'Street Address, Line 1',
-		required: true
-	}), $('<input/>', {
-		type: 'text',
-		id: 'address2',
-		name: 'address2',
-		placeholder: 'Street Address, Line 2'
-	}), $('<input/>', {
-		type: 'text',
-		id: 'city',
-		name: 'city',
-		placeholder: 'City/Town',
-		required: true
-	}), $('<select/>', {
-		id: 'state',
-		name: 'state',
-		placeholder: 'State',
-		required: true
-	}), $('<br/>'), $('<input/>', {
-		type: 'submit',
-		id: 'submit',
-		value: 'Submit'
-	})));
-	$('#state').append($('<option>', {
-		value: '',
-		text: 'Select a state/territory',
-		selected: true
-	}));
-	$.each(states, function (key, value) {
-		$('#state').append($('<option>', {
-			value: this.key,
-			text: this.value.name
-		}));
-	});
-	$('#state').change(function () {}).trigger('change');
-	$('#location').on('submit', function (e) {
-		e.preventDefault();
-		clearResults();
-		processForm($(this));
-	});
-}
-
-function processForm() {
-	var form = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-	var position;
-	var address = form.children('input[name="address1"]').val();
-	var address2 = form.children('input[name="address2"]').val();
-	if (address2 !== '') {
-		address = address + ',+' + address2;
-	}
-	address = address + ',+' + form.children('input[name="city"]').val();
-	address = address + ',+' + form.children('#state').val();
-	address = address.replace(/ /g, '_').replace(/\//g, '_').toLowerCase();
-	$.ajax({
-		url: 'https://maps.googleapis.com/maps/api/geocode/json?address=' + address + '&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA'
-	}).then(function (data) {
-		if (data.status === 'ZERO_RESULTS') {
-			showError('noformresults');
-			return;
-		}
-		position = {
-			coords: {
-				latitude: data.results[0].geometry.location.lat,
-				longitude: data.results[0].geometry.location.lng
-			}
-		};
-		showPosition(position);
-	});
-};
 
 function showPosition() {
 	var position = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
-
-	var districts = [];
 
 	loaderRenderer.renderDataLoader();
 	$.ajax({
 		url: 'https://api.geocod.io/v1/reverse?q=' + position.coords.latitude + ',' + position.coords.longitude + '&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f'
 	}).then(function (data) {
+		var districts;
+
 		if (data.results[0].fields.state_legislative_districts) {
 			districts = data.results[0].fields.state_legislative_districts;
+			dataHolder.districts = districts;
 		}
 		$.ajax({
 			url: 'https://maps.googleapis.com/maps/api/geocode/json?latlng=' + position.coords.latitude + ',' + position.coords.longitude + '&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA'
 		}).then(function (data) {
-			dataHolder = new DataHolder(data, districts, states, searchTweaks);
+			dataHolder.data = data;
 			dataHolder.addPlaces();
 		});
 	});
