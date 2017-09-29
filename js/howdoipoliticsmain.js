@@ -1,6 +1,4 @@
-var dataHolder;
-var formRenderer;
-var loaderRenderer;
+var dataHandler;
 var placeTypes = {
 	'neighborhood': {
 		'type_label': 'Neighborhood',
@@ -14,12 +12,16 @@ var placeTypes = {
 		'type_label': 'County',
 		'address_components': [0, 1]
 	},
-	'political': {
-		'type_label': 'Region',
-		'address_components': [0, 1]
-	},
 	'administrative_area_level_1': {
 		'type_label': 'State/Territory',
+		'address_components': [0, 1]
+	},
+	'country': {
+		'type_label': 'Country',
+		'address_components': [0]
+	},
+	'political': {
+		'type_label': 'Region',
 		'address_components': [0, 1]
 	}
 }
@@ -261,42 +263,86 @@ var searchTweaks = [
 	}
 ];
 
-class DataHolder {
-	constructor(states = {}, searchTweaks = []) {
+class DataHandler {
+	constructor(placeTypes = {}, states = {}, searchTweaks = []) {
 		this.places = []
 		this.state = ''
 		this.data = []
 		this.districts = {}
+		this.placeTypes = placeTypes
 		this.states = states
 		this.searchTweaks = searchTweaks
+		this.errorHandler = new ErrorHandler()
+		this.formRenderer = new FormRenderer()
 		this.loaderRenderer = new LoaderRenderer()
 		this.resultsRenderer = new ResultsRenderer()
 	}
 
-	processForm(form = {}, position = null) {
+	initFacebook() {
+		$.ajaxSetup({ cache: true });
+		$.getScript('https://connect.facebook.net/en_US/sdk.js', function(){
+			FB.init({
+				appId: '301393976977338',
+				version: 'v2.7'
+			});     
+			$('#loginbutton,#feedbutton').removeAttr('disabled');
+			//FB.getLoginStatus(updateStatusCallback);
+		});
+	}
+
+	getLocation() {
+		var self = this;
+
+		self.loaderRenderer.renderLocationLoader();
+		/*if (navigator.geolocation) {
+			navigator.geolocation.getCurrentPosition(function(position) {
+				self.formRenderer.renderForm({
+					parent: self,
+					position: position
+				});
+				self.loaderRenderer.clear();
+			}, function(error) {
+				self.loaderRenderer.clear();
+				self.errorHandler.showError(error);
+			});
+		} else {*/
+			self.loaderRenderer.clear();
+			self.errorHandler.showError({
+				code: 'legacy'
+			});
+			self.formRenderer.renderForm({
+				parent: self,
+				states: self.states
+			});
+		//}
+	}
+
+	processForm($form = {}, position = null) {
 		if (!position) {
-			processFallbackForm(form);
+			this.processFallbackForm($form);
 		} else {
-			showPosition(position);
+			this.showPosition(position);
 		}
 	}
 
-	processFallbackForm(form = {}) {
+	processFallbackForm($form = {}) {
+		var self = this;
 		var position;
-		var address = form.children('input[name="address1"]').val();
-		var address2 = form.children('input[name="address2"]').val();
+		var address = $form.find('input[name="address1"]').val();
+		var address2 = $form.find('input[name="address2"]').val();
 
 		if (address2 !== '') {
 			address = `${address},+${address2}`;
 		}
-		address = `${address},+${form.children('input[name="city"]').val()}`;
-		address = `${address},+${form.children('#state').val()}`;
+		address = `${address},+${$form.find('input[name="city"]').val()}`;
+		address = `${address},+${$form.find('#state').val()}`;
 		address = address.replace(/ /g, '_').replace(/\//g, '_').toLowerCase();
+
 		$.ajax({
 			url: `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
 		}).then(function(data) {
 			if (data.status === 'ZERO_RESULTS') {
-				showError('noformresults');
+				self.errorHandler.showError('noformresults');
 				return;
 			}
 			position = {
@@ -305,8 +351,50 @@ class DataHolder {
 					longitude: data.results[0].geometry.location.lng
 				}
 			};
-			showPosition(position);
+			self.showPosition(position);
 		});
+	}
+
+	showPosition(position = {}) {
+		var self = this;
+
+		self.loaderRenderer.renderDataLoader();
+		$.ajax({
+			url: `https://api.geocod.io/v1/reverse?q=${position.coords.latitude},${position.coords.longitude}&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f`
+		}).then(function(data) {
+			if (data.results[0].fields.state_legislative_districts) {
+				self.districts = data.results[0].fields.state_legislative_districts;
+			}
+			$.ajax({
+				url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
+			}).then(function(data) {
+				self.data = data;
+				self.addPlaces();
+			});
+		});
+	}
+
+	getPlaceType(placeTypes = {}, result = {}) {
+		var type;
+		var types = result.types.reduce(function(acc, cur, i) {
+			acc[cur] = cur;
+			return acc;
+		}, {});
+
+		for (var placeType in placeTypes) {
+			if (types[placeType]) {
+				if ((placeType === 'region') && (result.address_components.length === 1)) {
+					type = placeTypes['country'];
+					type.key = 'country';
+				} else {
+					type = placeTypes[placeType];
+					type.key = placeType;
+				}
+				break;
+			};
+		}
+
+		return type;
 	}
 
 	addPlaces() {
@@ -317,33 +405,38 @@ class DataHolder {
 		var component1;
 		var component2;
 		var searchTweak;
+		var type;
 		var typeLabel;
-		var state = '';
 
 		for (let i = 0; i < this.data.results.length; i++) {
 			result = this.data.results[i];
-			if (placeTypes[result.types[0]]) {
+			type = this.getPlaceType(this.placeTypes, result);
+
+			if (type) {
 				place = {};
-				component1 = result.address_components[placeTypes[result.types[0]].address_components[0]].long_name;
-				id = placeTypes[result.types[0]].type_label.replace(/ /g, '_').replace(/\//g, '_' ).toLowerCase();
-				if (result.types[0] === 'political') {
+				component1 = result.address_components[type.address_components[0]].long_name;
+				component2 = '';
+				id = type.type_label.replace(/ /g, '_').replace(/\//g, '_' ).toLowerCase();
+
+				if (type.key === 'political') {
 					id = `${id}_${i}`;
 				}
 
-				if ((result.types[0] === 'administrative_area_level_1') && (result.address_components[0].short_name in this.states)) {
+				if ((type.key === 'administrative_area_level_1') && (result.address_components[0].short_name in this.states)) {
 					typeLabel = states[result.address_components[0].short_name]['type'];
 				} else {
-					typeLabel = placeTypes[result.types[0]].type_label;
+					typeLabel = type.type_label;
 				}
 
-				this.state = result.address_components[placeTypes[result.types[0]].address_components[1]].long_name;
+				//this.state = result.address_components[type.address_components[1]].long_name;
 
-				if ((result.types[0] === 'administrative_area_level_1') && 
-				(result.address_components[0].short_name in states) && 
+				if ((type.key === 'administrative_area_level_1') && 
+				(result.address_components[0].short_name in this.states) && 
 				(states[result.address_components[0].short_name]['type'] === 'State')) {
 					component2 = '+state';
-				} else {
-					component2 = `,+${result.address_components[placeTypes[result.types[0]].address_components[1]].short_name}`;
+					this.state = result.address_components[type.address_components[0]].long_name;
+				} else if (type.address_components.length > 1) {
+					component2 = `, ${result.address_components[type.address_components[1]].short_name}`;
 				}
 				searchTweak = this.getSearchTweaks(result);
 				place = {
@@ -357,20 +450,22 @@ class DataHolder {
 			}
 		}
 
-		(this.districts['senate'] && (state !== '')) ? this.addDistrictPlaces() : this.processPlaces();
+		(this.districts['senate'] && (this.state !== '')) ? this.addDistrictPlaces() : this.processPlaces();
 	}
 
 	addDistrictPlaces() {
+		var district;
 		var type_label;
 		var place;
 
-		for (let value in this.districts) {
-			type_label = value.name.replace(' ' + value.district_number, '').replace('District', 'Legislative District');
+		for (let key in this.districts) {
+			district = this.districts[key];
+			type_label = district.name.replace(' ' + district.district_number, '').replace('District', 'Legislative District');
 			place = {
-				'id': value.name.replace(/ /g, '_').replace(/\//g, '_').toLowerCase(),
+				'id': district.name.replace(/ /g, '_').replace(/\//g, '_').toLowerCase(),
 				'type_label': type_label,
-				'label': value.district_number,
-				'search_string': `${this.state}+${value.name}`
+				'label': district.district_number,
+				'search_string': `${this.state} ${district.name}`
 			};
 			this.places.push(place);
 		}
@@ -392,28 +487,71 @@ class DataHolder {
 	processPlaces() {
 		var place;
 		var q;
+		var gQuery = '';
+		var or = encodeURIComponent(' OR ');
 
 		this.loaderRenderer.clear();
-		this.resultsRenderer.renderHeader();
+		this.resultsRenderer.renderResultsContainer();
 		for (let i = 0; i < this.places.length; i++) {
 			place = this.places[i];
 			q = encodeURIComponent(`"${place.search_string}" democratic organization${place.search_tweak}`);
-			this.resultsRenderer.renderBoxes(place);
-			this.getFacebookData(place, q, this.resultsRenderer.renderFacebookBox);
-			this.resultsRenderer.renderGoogleBox(place, q);
+			gQuery = gQuery + encodeURIComponent(`"${place.search_string}"`);
+
+			if (i < (this.places.length - 1)) {
+				gQuery = `${gQuery}${or}`;
+			}
+
+			this.getFacebookData(q, this.resultsRenderer.renderFacebookBox);
 		}
+		gQuery = `%28${gQuery}%29%20democratic%20organization`;
+		console.log(gQuery);
+		this.resultsRenderer.renderGoogleBox(gQuery);
 	}
 
-	getFacebookData(place = {}, q = '', callback = function(){}) {
+	getFacebookData(q = '', callback = function(){}) {
 		FB.api(
-			`/search?q=${q}
-			&type=page
-			&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website
-			&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4`,
+			`/search?q=${q}&type=page&fields=id,name,about,contact_address,description,engagement,general_info,link,phone,single_line_address,website&access_token=301393976977338|o7BuFDcKxXWAL3i9b3T_2jJgfT4`,
 			function(response) {
-				callback(place, response);
+				callback(response);
 			}
 		);
+	}
+
+	init() {
+		this.initFacebook();
+		this.getLocation();
+	}
+}
+
+class ErrorHandler {
+	clear() {
+	
+	}
+
+	showError(error = {}) {
+		switch(error.code) {
+			case error.PERMISSION_DENIED:
+				console.log('User denied the request for Geolocation.');
+				break;
+			case error.POSITION_UNAVAILABLE:
+				console.log('Location information is unavailable.');
+				break;
+			case error.TIMEOUT:
+				console.log('The request to get user location timed out.');
+				break;
+			case error.UNKNOWN_ERROR:
+				console.log('An unknown error occurred.');
+				break;
+			case 'legacy':
+				console.log('Geolocation is not supported by this browser.');
+				break;
+			case 'noformresults':
+				console.log('Geolocation is not supported by this browser.');
+				break;
+			default:
+				console.log('Yo dawg I heard you like errors, so I put errors in your errors so you can error while you error.');
+				break;
+		}
 	}
 }
 
@@ -422,22 +560,36 @@ class FormRenderer {
 	
 	}
 
-	renderForm({callback = function(){}, position = null, states = {}}) {
+	renderForm({parent = {}, position = null, states = {}}) {
 		$('.search').append(
-			$('<h3/>').text('Contact Form'),
-			$('<p/>').text('This is my form. Please fill it out. It\'s awesome!'),
+			$('<h3/>').text('What We Need To Know'),
+			$('<p/>').text('Please fill out these fields to help us get a better sense of what you\'re looking for.'),
 			$('<form/>', {
 				id: 'search',
 				name: 'search'
 			}).append(
-				$('<input/>', {
-					type: 'text',
-					id: 'address1',
-					name: 'address1',
-					placeholder: 'Street Address, Line 1',
-					required: true
-				}),
-				$('<br/>'),
+				$('<fieldset/>').append(
+					$('<input/>', {
+						type: 'radio',
+						id: 'party',
+						name: 'party',
+						value: 'democratic',
+						required: true
+					}),
+					$('<label/>', {
+						text: 'Democrat'
+					}),
+					$('<input/>', {
+						type: 'radio',
+						id: 'party',
+						name: 'party',
+						value: 'republican',
+						required: true
+					}),
+					$('<label/>', {
+						text: 'Republican'
+					})
+				),
 				$('<input/>', {
 					type: 'submit',
 					id: 'submit',
@@ -448,42 +600,45 @@ class FormRenderer {
 
 		if (!position) { this.renderFallbackFields(states) };
 
-		$('#search').on('submit', { callback : callback, position : position }, function(e) {
+		$('#search').on('submit', { parent : parent, position : position }, function(e) {
 			e.preventDefault();
-			e.data.callback($(this), e.data.position);
+			e.data.parent.processForm($(this), e.data.position);
 		});
 	}
 
 	renderFallbackFields(states) {
-		$('<input/>', {
-			type: 'text',
-			id: 'address1',
-			name: 'address1',
-			placeholder: 'Street Address, Line 1',
-			required: true
+		$('<p/>', {
+			text: 'We couldn\'t get your location automatically. Can you please tell us where you are? (We don\'t keep any personal info)'
 		}).insertBefore('#submit');
 
-		$('<input/>', {
-			type: 'text',
-			id: 'address2',
-			name: 'address2',
-			placeholder: 'Street Address, Line 2'
-		}).insertBefore('#submit');
-
-		$('<input/>', {
-			type: 'text',
-			id: 'city',
-			name: 'city',
-			placeholder: 'City/Town',
-			required: true
-		}).insertBefore('#submit');
-
-		$('<select/>', {
-			id: 'state',
-			name: 'state',
-			placeholder: 'State',
-			required: true
-		}).insertBefore('#submit');
+		$('<fieldset/>').append(
+			$('<input/>', {
+				type: 'text',
+				id: 'address1',
+				name: 'address1',
+				placeholder: 'Street Address, Line 1',
+				required: true
+			}),
+			$('<input/>', {
+				type: 'text',
+				id: 'address2',
+				name: 'address2',
+				placeholder: 'Street Address, Line 2'
+			}),
+			$('<input/>', {
+				type: 'text',
+				id: 'city',
+				name: 'city',
+				placeholder: 'City/Town',
+				required: true
+			}),
+			$('<select/>', {
+				id: 'state',
+				name: 'state',
+				placeholder: 'State',
+				required: true
+			})
+		).insertBefore('#submit');
 
 		$('#state').append(
 			$('<option>', {
@@ -537,23 +692,19 @@ class ResultsRenderer {
 		$('.results').empty();
 	}
 
-	renderHeader() {
+	renderResultsContainer() {
 		$('.results').append('<h3>We Found Some Democratic Organizations:</h3>');
+		$('.results').append('<table id="results_table"></table>');
+		$('#results_table').append('<tr id="results_row"></tr>');
+		$('#results_row').append('<td id="facebook_results"></td>');
+		$('#facebook_results').append('<ul id="facebook_results_list"></ul>');
 	}
 
-	renderBoxes(place) {
-		$('.results').append(`<h4>In Your ${place.type_label} (${place.label})</h4>`);
-		$('.results').append(`<table id="${place.id}_results_table"></table>`);
-		$(`#${place.id}_results_table`).append(`<tr id="${place.id}_results_row"></tr>`);
-	}
-
-	renderFacebookBox(place = {}, response = {}) {
+	renderFacebookBox(response = {}) {
 		var blurb;
 		var engagement;
 		var contact;
 
-		$(`#${place.id}_results_row`).append(`<td id="${place.id}_facebook_results"></td>`);
-		$(`#${place.id}_facebook_results`).append(`<ul id="${place.id}_facebook_results_list"></ul>`);
 		if (response && !response.error && response.data.length) {
 			for (let i = 0; i < response.data.length; i++) {
 				blurb = '';
@@ -584,7 +735,7 @@ class ResultsRenderer {
 						contact = `${contact}<span><a href="tel:${response.data[i].phone}">${response.data[i].phone}</span>`;
 					}
 					if (response.data[i].website) {
-						contact = `${contact}<span><a href="${response.data[i].website}" title="Website">Website</a></span>`;
+						contact = `${contact}<span><a href="${response.data[i].website}" title="Website" target="_blank">Website</a></span>`;
 					}
 					if (response.data[i].contact_address) {
 						contact = `${contact}</p><p translate="no">${response.data[i].contact_address}`;
@@ -594,112 +745,28 @@ class ResultsRenderer {
 					}
 					contact = `${contact}</p>`;
 				}
-				$(`#${place.id}_facebook_results_list`).append(`<li>
+				$('#facebook_results_list').append(`<li>
 					<a href="${response.data[i].link}" title="${response.data[i].name}" target="_blank">${response.data[i].name}</a><br>
 					${blurb}
 					${engagement}
 					${contact}
 					</li>`);
 			}
-		} else {
-			$(`#${place.id}_facebook_results_list`).append('<p class="empty">We got nothing from Facebook. Maybe you can start something?</p>')
 		}
 	}
 
-	renderGoogleBox(place = {}, q = '') {
-		$(`#${place.id}_results_row`).append(`<td id="${place.id}_google_results"></td>`);
+	renderGoogleBox(q = '') {
+		$('#results_row').append(`<td id="google_results"></td>`);
 		$('<iframe>', {
 			src: `../search.html?q=${q}`,
-			id: `${place.id}_google_results_iframe`,
+			id: 'google_results_iframe',
 			frameborder: 0,
 			scrolling: 'yes'
-		}).appendTo(`#${place.id}_google_results`);
+		}).appendTo('#google_results');
 	}
 }
 
 $(document).ready(function() {
-	dataHolder = new DataHolder(states = states, searchTweaks = searchTweaks);
-	formRenderer = new FormRenderer();
-	loaderRenderer = new LoaderRenderer();
-	initFacebook();
-	getLocation();
+	dataHandler = new DataHandler(placeTypes = placeTypes, states = states, searchTweaks = searchTweaks);
+	dataHandler.init();
 });
-
-function initFacebook() {
-	$.ajaxSetup({ cache: true });
-	$.getScript('https://connect.facebook.net/en_US/sdk.js', function(){
-		FB.init({
-			appId: '301393976977338',
-			version: 'v2.7'
-		});     
-		$('#loginbutton,#feedbutton').removeAttr('disabled');
-		//FB.getLoginStatus(updateStatusCallback);
-	});
-}
-
-function getLocation() {
-	if (navigator.geolocation) {
-		loaderRenderer.renderLocationLoader();
-		//navigator.geolocation.getCurrentPosition(showPosition, showError);
-		navigator.geolocation.getCurrentPosition(function(position) {
-			formRenderer.renderForm({
-				callback: dataHolder.processForm,
-				position: position
-			});
-		}, showError);
-	} else {
-		showError({
-			code: 'legacy'
-		});
-		formRenderer.renderForm({
-			callback: dataHolder.processForm,
-			states: dataHolder.states
-		});
-	}
-}
-
-function showPosition(position = {}) {
-	loaderRenderer.renderDataLoader();
-	$.ajax({
-		url: `https://api.geocod.io/v1/reverse?q=${position.coords.latitude},${position.coords.longitude}&fields=stateleg&api_key=cc8e7cb67fc566e98de4fd9b56dbb922788f52f`
-	}).then(function(data) {
-		var districts;
-
-		if (data.results[0].fields.state_legislative_districts) {
-			districts = data.results[0].fields.state_legislative_districts;
-			dataHolder.districts = districts;
-		}
-		$.ajax({
-			url: `https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.coords.latitude},${position.coords.longitude}&key=AIzaSyBO4ShgmmgpAeZfCcu8YYTZZ04i0vxR4DA`
-		}).then(function(data) {
-			dataHolder.data = data;
-			dataHolder.addPlaces();
-		});
-	});
-}
-
-function showError(error = {}) {
-	switch(error.code) {
-		case error.PERMISSION_DENIED:
-			console.log('User denied the request for Geolocation.');
-			break;
-		case error.POSITION_UNAVAILABLE:
-			console.log('Location information is unavailable.');
-			break;
-		case error.TIMEOUT:
-			console.log('The request to get user location timed out.');
-			break;
-		case error.UNKNOWN_ERROR:
-			console.log('An unknown error occurred.');
-			break;
-		case 'legacy':
-			console.log('Geolocation is not supported by this browser.');
-			break;
-		case 'noformresults':
-			console.log('Geolocation is not supported by this browser.');
-			break;
-			default:
-				console.log('Yo dawg I heard you like errors, so I put errors in your errors so you can error while you error.');
-				break;
-	}
-}

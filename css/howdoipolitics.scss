@@ -5,6 +5,7 @@ body {
 	margin: 0 10% 30px;
 }
 p {
+	font-size: 1.2em;
 	line-height: 1.8em;
 }
 a {
@@ -47,6 +48,16 @@ h4 {
 hr {
 	border: 4px solid #BF0A30;
 }
+fieldset {
+	border: none;
+	margin-bottom: 16px;
+}
+label {
+	margin: 0 20px 0 0;
+}
+fieldset input {
+	margin-right: 12px;
+}
 table {
 	width: 100%;
 	border-collapse: collapse;
@@ -59,17 +70,14 @@ table {
 }
 td {
 	width: 50%;
-	height: 200px;
+	height: 2605px;
 	overflow: scroll;
 	border: 3px dashed #BF0A30;
 
-	> ul,
-	> div {
-		height: 100%;
-		overflow: scroll;
-	}
 	> ul {
+		height: 2549px;
 		padding: 30px;
+		margin: 0;
 	}
 }
 iframe {
@@ -89,7 +97,7 @@ iframe {
 	margin: 46px 5px 5px 5px;
 	padding: 0;
 }
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 649px) {
 	h1,
 	h2 {
 		font-size: 3em;
@@ -105,6 +113,11 @@ iframe {
 	}
 	td {
 		width: 100%;
+		height: 350px;
 		display: block;
+
+	+ td {
+		overflow: hidden;
+	}
 	}
 }
